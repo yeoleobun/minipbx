@@ -17,6 +17,8 @@ usable as standalone libraries.
 
 ## Roadmap
 
+The architecture is in [docs/design.md](docs/design.md).
+
 1. **SIP message** (done): nom combinators for the RFC 3261 §25 ABNF in
    `siphora::grammar`, one function per rule; a message model with typed
    Via / CSeq / From / To / Contact on top.
