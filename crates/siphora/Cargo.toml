@@ -10,4 +10,5 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+nom.workspace = true
 thiserror.workspace = true

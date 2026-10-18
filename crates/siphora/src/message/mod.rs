@@ -6,7 +6,6 @@ mod method;
 mod params;
 mod parse;
 mod status;
-mod text;
 mod typed;
 mod uri;
 

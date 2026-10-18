@@ -17,8 +17,9 @@ usable as standalone libraries.
 
 ## Roadmap
 
-1. **SIP message** (done): parse and serialize requests and responses, typed
-   Via / CSeq / From / To / Contact.
+1. **SIP message** (done): nom combinators for the RFC 3261 §25 ABNF in
+   `siphora::grammar`, one function per rule; a message model with typed
+   Via / CSeq / From / To / Contact on top.
 2. **SIP transport**: UDP socket on tokio.
 3. **SIP transactions** (RFC 3261 §17): client and server state machines with
    timers, written as pure event → action functions so they test without a network.

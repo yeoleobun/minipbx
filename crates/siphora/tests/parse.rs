@@ -182,9 +182,12 @@ fn short_body_is_an_error() {
 }
 
 #[test]
-fn accepts_bare_lf_and_leading_empty_lines() {
-    let raw = b"\r\n\r\nBYE sip:a@example.com SIP/2.0\nCall-ID: x\n\n";
+fn skips_leading_crlf_and_requires_crlf_line_ends() {
+    let raw = b"\r\n\r\nBYE sip:a@example.com SIP/2.0\r\nCall-ID: x\r\n\r\n";
     assert!(matches!(Message::parse(raw), Ok(Message::Request(_))));
+
+    let bare_lf = b"BYE sip:a@example.com SIP/2.0\nCall-ID: x\n\n";
+    assert_eq!(Message::parse(bare_lf), Err(ParseError::Incomplete));
 }
 
 #[test]
@@ -261,4 +264,85 @@ fn builds_response_with_body() {
         res.to_bytes(),
         b"SIP/2.0 200 OK\r\nCall-ID: x\r\nContent-Length: 3\r\n\r\nabc"
     );
+}
+
+#[test]
+fn rejects_bad_header_lines() {
+    for raw in [
+        "BYE sip:a@example.com SIP/2.0\nNo colon here\n\n",
+        "BYE sip:a@example.com SIP/2.0\nBad Name: x\n\n",
+        "BYE sip:a@example.com SIP/2.0\n folded-first: x\n\n",
+        "BYE sip:a@example.com SIP/2.0\nX-Ctl: a\u{1}b\n\n",
+    ] {
+        assert!(
+            matches!(Message::parse(&crlf(raw)), Err(ParseError::HeaderLine(_))),
+            "{raw:?}"
+        );
+    }
+}
+
+#[test]
+fn keeps_empty_and_unknown_headers() {
+    let req = request("BYE sip:a@example.com SIP/2.0\nSubject:\nX-Custom :\tsome value \n\n");
+    assert_eq!(req.headers.get("Subject"), Some(""));
+    assert_eq!(req.headers.get("x-custom"), Some("some value"));
+}
+
+#[test]
+fn via_received_accepts_unbracketed_ipv6() {
+    let via: Via = "SIP/2.0/UDP [2001:db8::9]:5060;received=2001:db8::9;rport;branch=z9hG4bKa"
+        .parse()
+        .unwrap();
+    assert_eq!(via.host, "[2001:db8::9]");
+    assert_eq!(via.params.get("received"), Some("2001:db8::9"));
+    assert!(via.params.contains("rport"));
+    assert_eq!(via.branch(), Some("z9hG4bKa"));
+}
+
+#[test]
+fn via_rejects_other_protocol_versions() {
+    assert!("SIP/3.0/UDP host".parse::<Via>().is_err());
+    assert!("SIP/2.0/UDPhost".parse::<Via>().is_err());
+}
+
+#[test]
+fn contact_star_and_multi_token_display_names() {
+    let req = request(
+        "\
+REGISTER sip:registrar.example.com SIP/2.0
+Contact: *
+Expires: 0
+
+",
+    );
+    assert!(req.headers.contacts().unwrap().is_empty());
+
+    let addr: NameAddr = "Alice  Liddell <sip:alice@example.com;transport=tcp> ;tag=x"
+        .parse()
+        .unwrap();
+    assert_eq!(addr.display_name.as_deref(), Some("Alice Liddell"));
+    assert_eq!(addr.uri.params.get("transport"), Some("tcp"));
+    assert_eq!(addr.tag(), Some("x"));
+}
+
+#[test]
+fn name_addr_without_brackets_takes_no_uri_params() {
+    let addr: NameAddr = "sip:bob@example.com;tag=88sja8x".parse().unwrap();
+    assert!(addr.uri.params.is_empty());
+    assert_eq!(addr.tag(), Some("88sja8x"));
+}
+
+#[test]
+fn uri_scheme_is_case_insensitive_and_escapes_are_checked() {
+    let uri: Uri = "SIP:alice%20smith@example.com".parse().unwrap();
+    assert_eq!(uri.user.as_deref(), Some("alice%20smith"));
+    assert!("sip:alice%2@example.com".parse::<Uri>().is_err());
+}
+
+#[test]
+fn cseq_requires_digits_and_a_method() {
+    let cseq: siphora::CSeq = "  42   REGISTER ".parse().unwrap();
+    assert_eq!((cseq.seq, cseq.method), (42, Method::Register));
+    assert!("x INVITE".parse::<siphora::CSeq>().is_err());
+    assert!("42".parse::<siphora::CSeq>().is_err());
 }

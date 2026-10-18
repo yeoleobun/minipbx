@@ -1,7 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use super::text::is_token;
+use crate::grammar::core::is_token_char;
 
 /// A request method. Methods are case-sensitive (RFC 3261 §7.1).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -64,7 +64,7 @@ impl FromStr for Method {
             "REFER" => Method::Refer,
             "MESSAGE" => Method::Message,
             "PUBLISH" => Method::Publish,
-            _ if is_token(s) => Method::Other(s.to_owned()),
+            _ if !s.is_empty() && s.chars().all(is_token_char) => Method::Other(s.to_owned()),
             _ => return Err(()),
         })
     }

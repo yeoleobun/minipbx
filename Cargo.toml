@@ -11,4 +11,5 @@ repository = "https://github.com/yeoleobun/minipbx"
 [workspace.dependencies]
 siphora = { path = "crates/siphora", version = "0.1" }
 octothorpe = { path = "crates/octothorpe", version = "0.1" }
+nom = "8"
 thiserror = "2"

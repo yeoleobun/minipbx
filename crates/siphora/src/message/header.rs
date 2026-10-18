@@ -1,8 +1,9 @@
 use std::fmt;
 
 use super::ParseError;
-use super::text::split_unquoted;
 use super::typed::{CSeq, NameAddr, Via};
+use crate::grammar::header::{contact_value, content_length_value, via_value};
+use crate::grammar::parse_all;
 
 /// Header names, in their canonical spelling.
 pub mod names {
@@ -170,16 +171,6 @@ impl Headers {
             .map(|(_, v)| v.as_str())
     }
 
-    /// Every comma-separated value of a list header such as Via or Contact,
-    /// across all its header lines. Not for headers whose values can contain
-    /// bare commas, such as Date or WWW-Authenticate.
-    pub fn values(&self, name: &str) -> impl Iterator<Item = &str> {
-        self.get_all(name)
-            .flat_map(|v| split_unquoted(v, b','))
-            .map(str::trim)
-            .filter(|v| !v.is_empty())
-    }
-
     pub fn iter(&self) -> impl Iterator<Item = (&str, &str)> {
         self.0.iter().map(|(k, v)| (k.as_str(), v.as_str()))
     }
@@ -203,15 +194,20 @@ impl Headers {
             .parse()
     }
 
+    /// Every Via value, across all Via header lines, top first.
     pub fn vias(&self) -> Result<Vec<Via>, ParseError> {
-        self.values(names::VIA).map(str::parse).collect()
+        let mut vias = Vec::new();
+        for value in self.get_all(names::VIA) {
+            vias.extend(typed(via_value, names::VIA, value)?);
+        }
+        Ok(vias)
     }
 
     pub fn top_via(&self) -> Result<Via, ParseError> {
-        self.values(names::VIA)
-            .next()
-            .ok_or(ParseError::MissingHeader(names::VIA))?
-            .parse()
+        let value = self
+            .get(names::VIA)
+            .ok_or(ParseError::MissingHeader(names::VIA))?;
+        Ok(typed(via_value, names::VIA, value)?.remove(0))
     }
 
     pub fn from(&self) -> Result<NameAddr, ParseError> {
@@ -226,24 +222,32 @@ impl Headers {
             .parse()
     }
 
-    /// Contact addresses; empty for `Contact: *`.
+    /// Contact addresses across all Contact lines; empty for `Contact: *`.
     pub fn contacts(&self) -> Result<Vec<NameAddr>, ParseError> {
-        self.values(names::CONTACT)
-            .filter(|v| *v != "*")
-            .map(str::parse)
-            .collect()
+        let mut contacts = Vec::new();
+        for value in self.get_all(names::CONTACT) {
+            contacts.extend(typed(contact_value, names::CONTACT, value)?);
+        }
+        Ok(contacts)
     }
 
     pub fn content_length(&self) -> Result<Option<usize>, ParseError> {
         self.get(names::CONTENT_LENGTH)
-            .map(|v| {
-                v.trim().parse().map_err(|_| ParseError::HeaderValue {
-                    name: names::CONTENT_LENGTH,
-                    value: v.to_owned(),
-                })
-            })
+            .map(|v| typed(content_length_value, names::CONTENT_LENGTH, v))
             .transpose()
     }
+}
+
+/// Parses a whole header value with `parser`.
+fn typed<'a, T>(
+    parser: impl nom::Parser<&'a str, Output = T, Error = nom::error::Error<&'a str>>,
+    name: &'static str,
+    value: &'a str,
+) -> Result<T, ParseError> {
+    parse_all(parser, value).ok_or_else(|| ParseError::HeaderValue {
+        name,
+        value: value.to_owned(),
+    })
 }
 
 impl fmt::Display for Headers {

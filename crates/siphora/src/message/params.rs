@@ -1,26 +1,10 @@
 use std::fmt;
 
-use super::text::split_unquoted;
-
 /// `;name[=value]` parameters, in order. Names compare case-insensitively.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Params(Vec<(String, Option<String>)>);
 
 impl Params {
-    /// Parses `a=1;b;c=2` (without a leading `;`).
-    pub fn parse(s: &str) -> Self {
-        let params = split_unquoted(s, b';')
-            .into_iter()
-            .map(str::trim)
-            .filter(|p| !p.is_empty())
-            .map(|p| match p.split_once('=') {
-                Some((k, v)) => (k.trim().to_owned(), Some(v.trim().to_owned())),
-                None => (p.to_owned(), None),
-            })
-            .collect();
-        Self(params)
-    }
-
     pub fn contains(&self, name: &str) -> bool {
         self.0.iter().any(|(k, _)| k.eq_ignore_ascii_case(name))
     }
@@ -55,6 +39,12 @@ impl Params {
 
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+}
+
+impl FromIterator<(String, Option<String>)> for Params {
+    fn from_iter<I: IntoIterator<Item = (String, Option<String>)>>(iter: I) -> Self {
+        Self(iter.into_iter().collect())
     }
 }
 
