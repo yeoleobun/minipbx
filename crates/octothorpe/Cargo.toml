@@ -1,0 +1,12 @@
+[package]
+name = "octothorpe"
+version = "0.1.0"
+description = "An RTP-first media transport foundation for real-time servers"
+keywords = ["rtp", "webrtc", "sip", "media", "realtime"]
+categories = ["network-programming", "multimedia"]
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]

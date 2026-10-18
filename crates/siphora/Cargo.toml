@@ -1,0 +1,13 @@
+[package]
+name = "siphora"
+version = "0.1.0"
+description = "A Rust SIP signaling toolkit."
+keywords = ["sip", "voip", "signaling"]
+categories = ["network-programming"]
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+thiserror.workspace = true

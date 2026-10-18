@@ -1,0 +1,14 @@
+[package]
+name = "minipbx"
+version = "0.0.1"
+description = "An experimental PBX in Rust with S3-backed SIP message and call recording storage."
+keywords = ["pbx", "sip", "rtp", "voip", "s3"]
+categories = ["network-programming"]
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+siphora.workspace = true
+octothorpe.workspace = true
